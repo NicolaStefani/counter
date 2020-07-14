@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+<title>Sacending countdown</title>
+<link rel="stylesheet" type="text/css" href="./keshikan.css">
+<link rel="stylesheet" type="text/css" href="./dseg.css">
+<script>
+
+var daylist = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
+function genTimerStrings(tm, num){
+
+	var i;
+	var ret = tm.toString(10);
+	var left = ret.length;
+
+	if( left < num){
+		for(i=0; i<( num - left ); i++ ){
+			ret = String(0) + ret;
+		}
+	}
+
+	return ret;
+}
+
+function computeWorkTime(d1, d2) {
+
+	/* Comnpute the number of entire working days from d1 (excluded, so from d1+1) until d2 (included) */
+	function isSameDay(d1,d2)
+	{
+		return d1.getFullYear() == d2.getFullYear() &&
+				d1.getMonth() == d2.getMonth() &&
+				d1.getDate() == d2.getDate();
+	}
+
+	function isWeekend(d)
+	{
+		var SATURDAY = 6;
+		var SUNDAY = 0;
+		return d.getDay() == SATURDAY || d.getDay() == SUNDAY;
+	}
+
+	var holidays=[];
+
+	const worktimes=[[[00,00],[23,59]]];
+
+	/* expand holidays[] into individual days h[] */
+	h = Array()
+	holidays.forEach(function addInterval(item, index) {
+		if (Array.isArray(item))
+		{
+			d_s = new Date(item[0]);
+			d_e = new Date(item[1]);
+			d = new Date(d_s);
+			do {
+				h.push(d);
+				d = new Date(d);
+				d.setDate(d.getDate()+1);
+			} while (d <= d_e);
+		} else {
+			d = new Date(item);
+			h.push(d);
+		}
+	});
+
+	/* Assume array 'h' is sorted */
+	var d = new Date(d1);
+	var d2 = new Date(d2)
+
+	d.setHours(0);
+	d.setMinutes(0);
+	d.setSeconds(0);
+	d.setMilliseconds(0);
+	d2.setHours(0);
+	d2.setMinutes(0);
+	d2.setSeconds(0);
+	d2.setMilliseconds(0);
+
+
+	var days = 0;
+	var d1_working = false;
+	var cycles = 0;
+	/* Naive approach -- shift the days and compare */
+	while (d <= d2) {
+		//console.log(d);
+		//console.log(h[0]);
+		//console.log(""+d-h[0]);
+		//if (h.length>0 && isSameDay(d,h[0])) {
+		if (h.find(isSameDay.bind(null,d))) {
+			//console.log("skipping "+h[0]);
+			/* skip holidays */
+		} //else if (isWeekend(d)) {
+			/* skip weekend days */
+		//} 
+		else {
+			if (cycles == 0)
+			{
+				d1_working = true;
+			}
+			/* break at the end */
+			if (d - d2 == 0)
+				break;
+			days++;
+		}
+		cycles++;
+		/* move on to tomorrow */
+		d.setDate(d.getDate()+1);
+	}
+	//console.log(days);
+
+	function diffTime(d, hm)
+	{
+		var h2 = hm[0];
+		var m2 = hm[1];
+
+		var h1 = d.getHours();
+		var m1 = d.getMinutes();
+		var s1 = d.getSeconds();
+
+		return (h1 - h2) * 60 * 60 + (m1 - m2) * 60 + s1;
+	}
+
+	var secs = 0;
+	/* compute remaining working time today */
+	if (d1_working)
+	{
+		worktimes.forEach(function sumTime(item,index) {
+			var time_s = item[0];
+			var time_e = item[1];
+			var d_s = diffTime(new Date(d1),time_s);
+			var d_e = diffTime(new Date(d1),time_e);
+
+			/* now is before end */
+			if (d_e < 0)
+			{
+				/* now is after start */
+				if (d_s > 0)
+				{
+					secs += -d_e-1;
+				}
+				else
+				{
+					secs += d_s-d_e;
+				}
+			}
+		});
+	}
+
+	/* Compute todays' remaining time */
+	return [days, secs];
+}
+
+function updateTimer(){
+	var ret;
+	var date = new Date();
+	var tm_year, tm_mon, tm_date, tm_hour, tm_min, tm_sec, tm_msec,tm_day;
+	var colon;
+
+	tm_year = date.getFullYear();
+	tm_mon = date.getMonth()+1;
+	tm_date = date.getDate();
+	tm_day = date.getDay();
+	tm_hour = date.getHours();
+	tm_min = date.getMinutes();
+	tm_sec = date.getSeconds();
+	tm_msec = date.getMilliseconds();
+
+	tm_mon = genTimerStrings(tm_mon, 2);
+	tm_date = genTimerStrings(tm_date, 2);
+	tm_hour = genTimerStrings(tm_hour, 2);
+	tm_min = genTimerStrings(tm_min, 2);
+	tm_sec = genTimerStrings(tm_sec, 2);
+	tm_day = daylist[tm_day];
+
+	if( tm_sec & 1 ){
+		colon = '&nbsp;';
+	}else{
+		colon = ':';
+	}
+
+
+	utcTarget = new Date(2020, 07, 18, 10, 30, 00, 00);
+	//utcTarget = new Date(2020, 01, 25, 17, 00, 00, 00);
+	date = new Date();
+
+
+	//var utcNow = new Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds(), date.getMilliseconds());
+	var utcNow = new Date();
+	//utcNow = new Date(2020, 01, 26, 08, 01, 00, 00);
+
+	diffMs = utcTarget - utcNow;
+	crem_days = genTimerStrings(Math.floor(diffMs/86400/1000), 3);
+	crem_hours = genTimerStrings(Math.floor(diffMs/3600/1000) % 24, 2);
+	crem_minutes = genTimerStrings(Math.floor(diffMs/60/1000) % 60, 2);
+	crem_seconds = genTimerStrings(Math.floor(diffMs/1000) % 60, 2);
+
+	//document.getElementById("DSEGClock").innerHTML = tm_hour + colon + tm_min + "<span style=\"font-size:30px;\">"  + tm_sec + "</span>";
+	document.getElementById("cald").innerHTML = crem_days;
+	document.getElementById("calh").innerHTML = colon+crem_hours;
+	document.getElementById("calm").innerHTML = colon+crem_minutes;
+	document.getElementById("cals").innerHTML = colon+crem_seconds;
+
+	worktime = computeWorkTime(utcNow, utcTarget);
+	workdays = worktime[0];
+	worksecs = worktime[1];
+
+	wrem_weeks = genTimerStrings(Math.floor(workdays/5),2);
+	wrem_days = genTimerStrings(workdays % 5,1);
+
+	wrem_hours = genTimerStrings(Math.floor(worksecs/3600), 2);
+	wrem_minutes = genTimerStrings(Math.floor(worksecs/60) % 60, 2);
+	wrem_seconds = genTimerStrings(Math.floor(worksecs%60), 2);
+
+	document.getElementById("wrkw").innerHTML = wrem_weeks;
+	document.getElementById("wrkd").innerHTML = colon+wrem_days;
+	document.getElementById("wrkh").innerHTML = colon+wrem_hours;
+	document.getElementById("wrkm").innerHTML = colon+wrem_minutes;
+	document.getElementById("wrks").innerHTML = colon+wrem_seconds;
+
+	setTimeout("updateTimer()", 500 - date.getMilliseconds()%500 );
+
+}
+
+</script>
+
+<style>
+@font-face {
+  font-family: "D7MI";
+  src: url("./fonts/DSEG7Modern-Italic.woff") format('woff');
+}
+
+@font-face {
+  font-family: "D14MI";
+  src: url("./fonts/DSEG14Modern-Italic.woff") format('woff');
+}
+
+@font-face {
+  font-family: "D7MBI";
+  src: url("./fonts/DSEG7Modern-BoldItalic.woff") format('woff');
+}
+
+@font-face {
+  font-family: "DWEATHER";
+  src: url("./fonts/DSEGWeather.woff") format('woff');
+}
+
+.D7MI {
+font-family: "D7MI";
+}
+
+.D7MBI {
+font-family: "D7MBI";
+}
+
+.D14MI {
+font-family: "D14MI";
+}
+
+.DWEATHER {
+font-family: "DWEATHER";
+font-size:72px;
+height:72px;
+}
+
+.Clock-Wrapper{
+	position:relative;
+	border:6px solid #000;
+	border-radius:9px;
+	height:120px;
+	width:780px;
+	background-color:#fb7c00;
+	box-shadow: 4px 4px 1px 0px rgba(0,0,0,0.1) inset;
+}
+
+
+.Clock-Time-Background{
+	z-index:50;
+	position:absolute;
+	top:50px;
+	left:12px;
+	color:rgba(0,0,0,0.15);
+	font-size:70px;
+}
+
+.Clock-Time-Front{
+	z-index:100;
+	position:absolute;
+	top:50px;
+	left:12px;
+	font-size:70px;
+}
+
+.Clock-Year-Background{
+	z-index:50;
+	position:absolute;
+	top:13px;
+	left:6px;
+	color:rgba(0,0,0,0.1);
+	font-size:27px;
+}
+
+.Clock-Year-Front{
+	z-index:100;
+	position:absolute;
+	top:13px;
+	left:6px;
+	font-size:27px;
+
+}
+
+.InputForm-Wrapper{
+	position:relative;
+	border:1px solid #000;
+	border-radius:3px;
+	height:80px;
+	margin-top:10px;
+}
+
+.InputForm-Front{
+	z-index:100;
+	position:absolute;
+	top:30px;
+	left:6px;
+	font-size:60px;
+}
+
+.example-Wrapper{
+	position:relative;
+	border:1px solid #000;
+	border-radius:3px;
+	height:80px;
+	margin-top:10px;
+}
+
+.example-Front{
+	z-index:100;
+	position:absolute;
+	top:30px;
+	left:6px;
+	font-size:60px;
+}
+
+.label {
+	font-size:35px;
+	font-family:Arial, Helvetica, sans-serif;
+	/*font-style: italic;*/
+	font-weight: bold;
+}
+
+td{
+	padding: 0px;
+}
+
+
+</style>
+
+
+</head>
+
+<body onload="updateTimer()">
+
+<header>
+</header>
+
+<h1>Sacending</h1>
+
+
+<h2>Calendar time</h2>
+<div class="center">
+	<div class="Clock-Wrapper">
+		<!--<span class="Clock-Time-Background D7MBI">88:88<span style="font-size:30px;">88</span></span>-->
+		<span class="Clock-Time-Background D7MBI">
+			<span id="caldb">888</span><span class="label">d</span>
+			<span id="calhb">:88</span><span class="label">h</span>
+			<span id="calmb">:88</span><span class="label">m</span>
+			<span id="calsb">:88</span><span class="label">s</span>
+		</span>
+		<span class="Clock-Time-Front D7MBI">
+			<span id="cald">888</span><span class="label">d</span>
+			<span id="calh">:88</span><span class="label">h</span>
+			<span id="calm">:88</span><span class="label">m</span>
+			<span id="cals">:88</span><span class="label">s</span>
+		</span>
+		<!--<span class="Clock-Year-Background"><span class="D7MI">2088-88-88</span><span class="D14MI"> ~~~</span></span>-->
+		<span id="DSEGClock-Year" class="Clock-Year-Front"></span>
+	</div>
+</div>
+
+<h2>Working time</h2>
+<div class="center">
+	<div class="Clock-Wrapper">
+		<!--<span class="Clock-Time-Background D7MBI">88:88<span style="font-size:30px;">88</span></span>-->
+		<span class="Clock-Time-Background D7MBI">
+			<span id="wrkwb">88</span><span class="label">w</span>
+			<span id="wrkdb">:8</span><span class="label">d</span>
+			<span id="wrkhb">:88</span><span class="label">h</span>
+			<span id="wrkmb">:88</span><span class="label">m</span>
+			<span id="wrksb">:88</span><span class="label">s</span>
+		</span>
+		<span class="Clock-Time-Front D7MBI">
+			<span id="wrkw">88</span><span class="label">w</span>
+			<span id="wrkd">:8</span><span class="label">d</span>
+			<span id="wrkh">:88</span><span class="label">h</span>
+			<span id="wrkm">:88</span><span class="label">m</span>
+			<span id="wrks">:88</span><span class="label">s</span>
+		</span>
+		<!--<span class="Clock-Year-Background"><span class="D7MI">2088-88-88</span><span class="D14MI"> ~~~</span></span>-->
+		<span id="DSEGClock-Year" class="Clock-Year-Front"></span>
+	</div>
+</div>
+
+</body>
+
+</html>
